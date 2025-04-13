@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 char[][][] levels =
 [
@@ -376,7 +378,7 @@ Console.Write("""
 
 	    Press [escape] to close the game at any time.
 
-	    Press [enter] to begin...
+	    Press [enter] to begin or [1-15] to jump to a level.
 	""");
 Console.CursorVisible = false;
 PressToContinue();
@@ -474,9 +476,9 @@ void Update()
 	{
 		switch (gravity)
 		{
-			case Direction.Up:    velocity.Y--; break;
-			case Direction.Left:  velocity.X--; break;
-			case Direction.Down:  velocity.Y++; break;
+			case Direction.Up: velocity.Y--; break;
+			case Direction.Left: velocity.X--; break;
+			case Direction.Down: velocity.Y++; break;
 			case Direction.Right: velocity.X++; break;
 		}
 		updatesSinceGravityApplied = 0;
@@ -490,8 +492,8 @@ void Update()
 
 	int u = velocity.Y < 0 ? -velocity.Y : 0;
 	int l = velocity.X < 0 ? -velocity.X : 0;
-	int d = velocity.Y > 0 ?  velocity.Y : 0;
-	int r = velocity.X > 0 ?  velocity.X : 0;
+	int d = velocity.Y > 0 ? velocity.Y : 0;
+	int r = velocity.X > 0 ? velocity.X : 0;
 
 	if (velocity.Y < 0 && (gravity is Direction.Left && WallLeft() || gravity is Direction.Right && WallRight()))
 	{
@@ -677,25 +679,25 @@ void Update()
 bool WallUp() =>
 	levels[level][PlayerPosition.Y - 2][PlayerPosition.X - 2] is '█' or '#' ||
 	levels[level][PlayerPosition.Y - 2][PlayerPosition.X - 1] is '█' or '#' ||
-	levels[level][PlayerPosition.Y - 2][PlayerPosition.X]     is '█' or '#' ||
+	levels[level][PlayerPosition.Y - 2][PlayerPosition.X] is '█' or '#' ||
 	levels[level][PlayerPosition.Y - 2][PlayerPosition.X + 1] is '█' or '#' ||
 	levels[level][PlayerPosition.Y - 2][PlayerPosition.X + 2] is '█' or '#';
 
 bool WallDown() =>
 	levels[level][PlayerPosition.Y + 2][PlayerPosition.X - 2] is '█' or '#' ||
 	levels[level][PlayerPosition.Y + 2][PlayerPosition.X - 1] is '█' or '#' ||
-	levels[level][PlayerPosition.Y + 2][PlayerPosition.X]     is '█' or '#' ||
+	levels[level][PlayerPosition.Y + 2][PlayerPosition.X] is '█' or '#' ||
 	levels[level][PlayerPosition.Y + 2][PlayerPosition.X + 1] is '█' or '#' ||
 	levels[level][PlayerPosition.Y + 2][PlayerPosition.X + 2] is '█' or '#';
 
 bool WallLeft() =>
 	levels[level][PlayerPosition.Y - 1][PlayerPosition.X - 3] is '█' or '#' ||
-	levels[level][PlayerPosition.Y][PlayerPosition.X - 3]     is '█' or '#' ||
+	levels[level][PlayerPosition.Y][PlayerPosition.X - 3] is '█' or '#' ||
 	levels[level][PlayerPosition.Y + 1][PlayerPosition.X - 3] is '█' or '#';
 
 bool WallRight() =>
 	levels[level][PlayerPosition.Y - 1][PlayerPosition.X + 3] is '█' or '#' ||
-	levels[level][PlayerPosition.Y][PlayerPosition.X + 3]     is '█' or '#' ||
+	levels[level][PlayerPosition.Y][PlayerPosition.X + 3] is '█' or '#' ||
 	levels[level][PlayerPosition.Y + 1][PlayerPosition.X + 3] is '█' or '#';
 
 void Render()
@@ -812,10 +814,10 @@ char RenderGravityIdentifier()
 {
 	return gravity switch
 	{
-		Direction.None  => '○',
-		Direction.Up    => '^',
-		Direction.Down  => 'v',
-		Direction.Left  => '<',
+		Direction.None => '○',
+		Direction.Up => '^',
+		Direction.Down => 'v',
+		Direction.Left => '<',
 		Direction.Right => '>',
 		_ => throw new NotImplementedException(),
 	};
@@ -824,40 +826,133 @@ char RenderGravityIdentifier()
 void PressToContinue(ConsoleKey key = ConsoleKey.Enter)
 {
 	ConsoleKey input = default;
-	while (input != key && !closeRequested)
+	int tmp = 0;
+	bool exit = false;
+	bool readKey = true;
+	while (input != key && !closeRequested
+		&& (tmp == 10 || tmp == 0))
 	{
-		input = Console.ReadKey(true).Key;
-		if (input is ConsoleKey.Escape)
+		if (readKey)
+			input = Console.ReadKey(true).Key;
+		switch (input)
 		{
-			closeRequested = true;
-			return;
+			case ConsoleKey.Escape:
+				closeRequested = true;
+				break;
+			case ConsoleKey.NumPad0:
+			case ConsoleKey.D0:
+				exit = true;
+				break;
+			case ConsoleKey.NumPad1:
+			case ConsoleKey.D1:
+				var ret = Handle1OrTen(tmp, input, readKey);
+				tmp = ret.tmp;
+				input = ret.input;
+				readKey = ret.readKey;
+				break;
+			case ConsoleKey.NumPad2:
+			case ConsoleKey.D2:
+				tmp += 2;
+				break;
+			case ConsoleKey.NumPad3:
+			case ConsoleKey.D3:
+				tmp += 3;
+				break;
+			case ConsoleKey.NumPad4:
+			case ConsoleKey.D4:
+				tmp += 4;
+				break;
+			case ConsoleKey.NumPad5:
+			case ConsoleKey.D5:
+				tmp += 5;
+				break;
+			case ConsoleKey.NumPad6:
+			case ConsoleKey.D6:
+				tmp += 6;
+				break;
+			case ConsoleKey.NumPad7:
+			case ConsoleKey.D7:
+				tmp += 7;
+				break;
+			case ConsoleKey.NumPad8:
+			case ConsoleKey.D8:
+				tmp += 8;
+				break;
+			case ConsoleKey.NumPad9:
+			case ConsoleKey.D9:
+				tmp += 9;
+				break;
+
+			default:
+				break;
 		}
+		if (exit) break;
+	}
+	if (tmp != 0)
+	{
+		level = tmp;
+		PlayerPosition = GetStartingPlayerPositionFromLevel();
 	}
 }
 
+static (int tmp, ConsoleKey input, bool readKey) Handle1OrTen(int tmp, ConsoleKey input, bool readKey)
+{
+	(int tmp, ConsoleKey input, bool readKey) ret = (10, input, readKey);
+	if (tmp == 10)
+		ret = (11, input, true);
+	else
+	{
+		var cts = new CancellationTokenSource();
+		var t = Task.Run(() =>
+		{
+			try
+			{
+				while (!cts.Token.IsCancellationRequested)
+				{
+					if (Console.KeyAvailable)
+					{
+						ret.input = Console.ReadKey(true).Key;
+						ret.readKey = false;
+						break;
+					}
+				}
+			}
+			catch (OperationCanceledException)
+			{
+			}
+		}, cts.Token);
+		t.Wait(1000);
+		if (!t.IsCompleted)
+		{
+			cts.Cancel();
+			ret.tmp = 1;
+		}
+	}
+	return ret;
+}
 internal enum Direction
 {
-	None  =      0,
-	Up    = 1 << 0,
-	Down  = 1 << 1,
-	Left  = 1 << 2,
+	None = 0,
+	Up = 1 << 0,
+	Down = 1 << 1,
+	Left = 1 << 2,
 	Right = 1 << 3,
 }
 
 internal enum GameState
 {
-	Default =      0,
-	Died    = 1 << 0,
-	Won     = 1 << 1,
+	Default = 0,
+	Died = 1 << 0,
+	Won = 1 << 1,
 }
 
 internal enum PlayerState
 {
-	Neutral   =      0,
-	Up        = 1 << 0,
-	Down      = 1 << 1,
-	Left      = 1 << 2,
-	Right     = 1 << 3,
-	Sliding   = 1 << 4,
-	Squash    = 1 << 5,
+	Neutral = 0,
+	Up = 1 << 0,
+	Down = 1 << 1,
+	Left = 1 << 2,
+	Right = 1 << 3,
+	Sliding = 1 << 4,
+	Squash = 1 << 5,
 }
